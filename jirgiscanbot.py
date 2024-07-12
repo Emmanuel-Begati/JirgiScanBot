@@ -49,7 +49,7 @@ async def get_date(update: Update, context: CallbackContext):
         return DATE
 
 def get_entity_id(city):
-    url = "https://sky-scanner3.p.rapidapi.com/autocomplete"
+    url = "https://sky-scanner3.p.rapidapi.com/flights/autocomplete"
     querystring = {"query": city}
     headers = {
         "x-rapidapi-key": RAPIDAPI_KEY,
@@ -62,35 +62,30 @@ def get_entity_id(city):
         return data['Places'][0]['PlaceId']
     return None
 
-def get_flight_info(origin, destination, date):
+def get_flight_info(origin, destination, year_month):
     try:
-        base_date = datetime.strptime(date, "%Y-%m-%d")
-        date_range = [base_date + timedelta(days=i) for i in range(-7, 8)]
+        url = "https://sky-scanner3.p.rapidapi.com/flights/price-calendar-web"
+        params = {
+            "fromEntityId": origin,
+            "toEntityId": destination,
+            "yearMonth": year_month,
+        }
+        headers = {
+            "x-rapidapi-key": RAPIDAPI_KEY,
+            "x-rapidapi-host": "sky-scanner3.p.rapidapi.com"
+        }
+        response = requests.get(url, params=params, headers=headers)
+        data = response.json()
+        print(data)
         
         all_flights = []
-        
-        for search_date in date_range:
-            url = "https://sky-scanner3.p.rapidapi.com/flights/price-calendar-web"
-            params = {
-                "fromEntityId": origin,
-                "toEntityId": destination,
-                "yearMonth": search_date.strftime("%Y-%m"),
-            }
-            headers = {
-                "x-rapidapi-key": RAPIDAPI_KEY,
-                "x-rapidapi-host": "sky-scanner3.p.rapidapi.com"
-            }
-            response = requests.get(url, params=params, headers=headers)
-            data = response.json()
-            print (data)
-            if data.get('data') and data['data'].get('quotes'):
-                for quote in data['data']['quotes']:
-                    all_flights.append({
-                        'date': quote['outboundLeg']['departureDateTime'].split('T')[0],
-                        'price': quote['price'],
-                        'carrier': quote['carriers'][0]['name']
-                    })
-            
+        if data.get('data') and data['data'].get('quotes'):
+            for quote in data['data']['quotes']:
+                all_flights.append({
+                    'date': quote['outboundLeg']['departureDateTime'].split('T')[0],
+                    'price': quote['price'],
+                    'carrier': quote['carriers'][0]['name']
+                })    
 
         if all_flights:
             all_flights.sort(key=lambda x: x['price'])
@@ -103,7 +98,31 @@ def get_flight_info(origin, destination, date):
     
     except Exception as e:
         return f"An error occurred while searching for flights: {str(e)}"
+    
+# def fetch_states(url):
+#     try:
+#         response = requests.get(url)
+#         response.raise_for_status()  # Raises an HTTPError if the response status code is 4XX/5XX
+#         data = response.json()
+        
+#         # Assuming the data is a JSON object that contains a list of states under the key 'states'
+#         states = data['states']
+#         return states
+#     except requests.RequestException as e:
+#         print(f"Error fetching states: {e}")
+#         return []
 
+# def print_states(states):
+#     for state in states:
+#         print(state)
+
+# # Example usage
+# url = "https://sky-scanner3.p.rapidapi.com/flights/price-calendar-web"  # Replace with the actual URL
+# states = fetch_states(url)
+# print_states(states)
+
+# fetch_states(url)
+# print_states(states)
 def main():
     application = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
